@@ -6,6 +6,8 @@ name = "pypi"
 [packages]
 textual-dev = "*"
 pyotp = "*"
+pyzbar = "*"
+pillow = "*"
 
 [dev-packages]
 

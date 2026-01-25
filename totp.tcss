@@ -1,3 +1,7 @@
+SelectQRImageScreen {
+    layout: vertical;
+    align: center middle;
+}
 
 TOTPSite {   
     background: $boost;
@@ -12,6 +16,40 @@ TOTPCodeDisplay {
     color: $foreground-muted;
     width: 7fr;
 }
+
+#qr-dialog {
+    grid-size: 2;
+    grid-gutter: 1 2;
+    padding: 0 1;
+    width: 60%;
+    height: 50%;
+    border: thick $background 80%;
+    background: $surface;
+    align: center middle;
+}
+
+#qr-file-tree {
+    column-span: 2;
+    row-span: 3;
+    height: 10;
+}
+
+#qr-path-input {
+    height: 3;
+    column-span: 2;
+}
+
+.qr-dialog-button {
+    height: 3;
+    /*border: solid red;*/
+    width: 20%;
+}
+
+#qr-ok-button {
+}
+#qr-cancel-button {
+}
+
 
 #vscroll {
     height: 100%;

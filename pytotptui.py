@@ -9,6 +9,9 @@ from textual.app import App, ComposeResult
 from textual.containers import Horizontal, VerticalScroll
 from textual.widgets import Digits, Footer, Header, Static
 
+from pytotptui.qrdecode import decode_qr_code
+from pytotptui.qrscreen import SelectQRImageScreen
+
 
 class TOTPCodeDisplay(Digits):
     """
@@ -75,10 +78,15 @@ class TOTPApp(App):
     """
 
     CSS_PATH = "totp.tcss"
-    BINDINGS = [("d", "toggle_dark", "Toggle dark mode")]
+    BINDINGS = [
+        ("d", "toggle_dark", "Toggle dark mode"),
+        ("q", "add_with_qr_code", "Add with QR code."),
+    ]
 
     def compose(self) -> ComposeResult:
-        """Create child widgets for the app."""
+        """
+        Create child widgets for the app.
+        """
         yield Header()
         yield Footer()
         urls = load_urls()
@@ -86,10 +94,29 @@ class TOTPApp(App):
         yield VerticalScroll(*sites, id="vscroll")
 
     def action_toggle_dark(self) -> None:
-        """An action to toggle dark mode."""
+        """
+        An action to toggle dark mode.
+        """
         self.theme = (
             "textual-dark" if self.theme == "textual-light" else "textual-light"
         )
+
+    def action_add_with_qr_code(self):
+        """
+        Add a site with a QR code image.
+        """
+        self.push_screen(SelectQRImageScreen(), self.process_qr_code)
+
+    def process_qr_code(self, qr_code_path):
+        """
+        Import a site from a QR code.
+        """
+        url = decode_qr_code(qr_code_path)
+        urls = load_urls()
+        urls.append(url)
+        save_urls(urls)
+        vscroll = self.query_one("#vscroll")
+        vscroll.mount(TOTPSite(url))
 
 
 def load_urls():
@@ -100,6 +127,15 @@ def load_urls():
     with open(path, "r") as f:
         urls = json.load(f)
     return urls
+
+
+def save_urls(urls):
+    """
+    Save URLs.
+    """
+    path = pathlib.Path("~/.config/pytotptui/sites.json").expanduser()
+    with open(path, "w") as f:
+        json.dump(urls, f)
 
 
 if __name__ == "__main__":
