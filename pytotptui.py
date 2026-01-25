@@ -135,7 +135,7 @@ def save_urls(urls):
     """
     path = pathlib.Path("~/.config/pytotptui/sites.json").expanduser()
     with open(path, "w") as f:
-        json.dump(urls, f)
+        json.dump(urls, f, indent=4)
 
 
 if __name__ == "__main__":
