@@ -3,15 +3,18 @@
 import datetime
 import json
 import pathlib
+import shutil
 
 import pyotp
 import pyperclip
 from textual.app import App, ComposeResult
-from textual.containers import Horizontal, VerticalScroll
-from textual.widgets import Button, Digits, Footer, Header, Static
+from textual.containers import Horizontal
+from textual.widgets import (Button, Digits, Footer, Header, ListItem,
+                             ListView, Static)
 
 from pytotptui.qrdecode import decode_qr_code
 from pytotptui.qrscreen import SelectQRImageScreen
+from pytotptui.messages import MessageWidget
 
 
 class TOTPCodeDisplay(Digits):
@@ -20,7 +23,7 @@ class TOTPCodeDisplay(Digits):
     """
 
 
-class TOTPSite(Static):
+class TOTPSite(ListItem):
     """
     A widget that shows the TOTP code for a site.
     """
@@ -91,17 +94,36 @@ class TOTPApp(App):
     BINDINGS = [
         ("d", "toggle_dark", "Toggle dark mode"),
         ("q", "add_with_qr_code", "Add with QR code."),
+        ("c", "copy_code_to_clipboard", "Copy code to clipboard."),
+        ("ctrl+x", "delete_site", "Delete TOTP site."),
+        ("ctrl+s", "save_deletes", "Save deletes."),
     ]
 
     def compose(self) -> ComposeResult:
         """
         Create child widgets for the app.
         """
+        mw = MessageWidget()
+        mw.add_class("hidden")
+        yield mw
         yield Header()
         yield Footer()
         urls = load_urls()
         sites = [TOTPSite(url) for url in urls]
-        yield VerticalScroll(*sites, id="vscroll")
+        yield ListView(*sites, id="listview")
+
+    def on_list_view_highlighted(self, message):
+        """
+        Event handler
+        """
+        listview = message.list_view
+        for child in listview.children:
+            if isinstance(child, TOTPSite):
+                child.remove_class("highlighted")
+        listitem = message.item
+        if listitem is None:
+            return
+        listitem.add_class("highlighted")
 
     def action_toggle_dark(self) -> None:
         """
@@ -110,6 +132,35 @@ class TOTPApp(App):
         self.theme = (
             "textual-dark" if self.theme == "textual-light" else "textual-light"
         )
+
+    def action_copy_code_to_clipboard(self):
+        """
+        Copy the selected code to the clipboard.
+        """
+        listview = self.query_one("#listview")
+        listitem = listview.highlighted_child
+        if listitem is None:
+            return
+        code = listitem.totp.now()
+        pyperclip.copy(code)
+
+    def action_delete_site(self):
+        """
+        Delete a site.
+        """
+        listview = self.query_one("#listview")
+        index = listview.index
+        if index is None:
+            return
+        listview.remove_items([index])
+
+    def action_save_deletes(self):
+        """
+        Persist deletions to disk.
+        """
+        urls = self.get_urls_from_list_view()
+        save_urls(urls)
+        self.show_message("Configuration saved.")
 
     def action_add_with_qr_code(self):
         """
@@ -122,11 +173,36 @@ class TOTPApp(App):
         Import a site from a QR code.
         """
         url = decode_qr_code(qr_code_path)
-        urls = load_urls()
-        urls.append(url)
+        listview = self.query_one("#listview")
+        listview.append(TOTPSite(url))
+        urls = self.get_urls_from_list_view()
         save_urls(urls)
-        vscroll = self.query_one("#vscroll")
-        vscroll.mount(TOTPSite(url))
+
+    def get_urls_from_list_view(self):
+        """
+        Returns a list of URLs from the list view.
+        """
+        listview = self.query_one("#listview")
+        urls = []
+        for child in listview.children:
+            if isinstance(child, TOTPSite):
+                url = child.totp.provisioning_uri()
+                urls.append(url)
+        return urls
+
+    def show_message(self, message, seconds=5.0):
+        """
+        Show a one line message floating over the middle of the application for
+        `seconds` seconds.
+        """
+        mw = self.query_one(MessageWidget)
+        mw.message = message
+        mw.remove_class("hidden")
+
+        def hideit():
+            mw.add_class("hidden")
+
+        self.set_interval(seconds, hideit, repeat=1)
 
 
 def load_urls():
@@ -144,6 +220,8 @@ def save_urls(urls):
     Save URLs.
     """
     path = pathlib.Path("~/.config/pytotptui/sites.json").expanduser()
+    backup_path = pathlib.Path("~/.config/pytotptui/sites.backup.json").expanduser()
+    shutil.copy2(path, backup_path)
     with open(path, "w") as f:
         json.dump(urls, f, indent=4)
 
