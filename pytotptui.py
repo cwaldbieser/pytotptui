@@ -5,9 +5,10 @@ import json
 import pathlib
 
 import pyotp
+import pyperclip
 from textual.app import App, ComposeResult
 from textual.containers import Horizontal, VerticalScroll
-from textual.widgets import Digits, Footer, Header, Static
+from textual.widgets import Button, Digits, Footer, Header, Static
 
 from pytotptui.qrdecode import decode_qr_code
 from pytotptui.qrscreen import SelectQRImageScreen
@@ -57,6 +58,15 @@ class TOTPSite(Static):
             yield Static(name, id="totp-name")
             yield Static(f"{int(round(time_remaining, 0))} s", id="totp-time-remaining")
             yield TOTPCodeDisplay(now, id="totp-display")
+            yield Button("Copy", id="totp-copy-button")
+
+    def on_button_pressed(self, message):
+        """
+        Button pressed event.
+        """
+        if message.button.id == "totp-copy-button":
+            code = self.totp.now()
+            pyperclip.copy(code)
 
     def update_totp(self) -> None:
         """

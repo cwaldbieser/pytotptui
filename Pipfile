@@ -8,6 +8,7 @@ textual-dev = "*"
 pyotp = "*"
 pyzbar = "*"
 pillow = "*"
+pyperclip = "*"
 
 [dev-packages]
 
